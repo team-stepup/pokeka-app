@@ -47,8 +47,20 @@ export default function CardsPage() {
     return sortDir === "desc" ? <ChevronDown size={14} /> : <ChevronUp size={14} />;
   };
 
+  const basePath = typeof window !== "undefined" && window.location.pathname.startsWith("/pokeka-app") ? "/pokeka-app" : "";
+
   return (
-    <div>
+    <div className="relative">
+      {/* Watermark background */}
+      <div
+        className="pointer-events-none fixed inset-0 z-0 opacity-[0.06]"
+        style={{
+          backgroundImage: `url(${basePath}/watermark.png)`,
+          backgroundSize: "320px",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+        }}
+      />
       <div className="flex items-center justify-between gap-3 mb-5">
         <h2 className="text-2xl font-bold">カード一覧</h2>
         <button
