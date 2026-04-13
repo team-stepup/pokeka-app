@@ -1,11 +1,13 @@
-const CACHE_NAME = "pokeka-v1";
+// BUILD_VERSION will be replaced at build time
+const CACHE_VERSION = "__BUILD_VERSION__";
+const CACHE_NAME = "pokeka-" + CACHE_VERSION;
 const PRECACHE_URLS = ["/pokeka-app/"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
   );
-  self.skipWaiting();
+  // Don't skipWaiting here - let the UI prompt the user
 });
 
 self.addEventListener("activate", (event) => {
@@ -30,7 +32,6 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-// Listen for update messages
 self.addEventListener("message", (event) => {
   if (event.data === "skipWaiting") self.skipWaiting();
 });

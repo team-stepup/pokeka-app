@@ -1,33 +1,54 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 export default function PwaRegistrar() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
-  const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
+  const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
 
-  useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      const basePath = location.pathname.startsWith("/pokeka-app") ? "/pokeka-app" : "";
-      navigator.serviceWorker.register(`${basePath}/sw.js`).then((reg) => {
-        reg.addEventListener("updatefound", () => {
-          const newWorker = reg.installing;
-          if (!newWorker) return;
-          newWorker.addEventListener("statechange", () => {
-            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-              setUpdateAvailable(true);
-              setWaitingWorker(newWorker);
-            }
-          });
-        });
-      });
+  const checkWaiting = useCallback((reg: ServiceWorkerRegistration) => {
+    if (reg.waiting && navigator.serviceWorker.controller) {
+      setUpdateAvailable(true);
+      setRegistration(reg);
     }
   }, []);
 
-  const handleUpdate = () => {
-    if (waitingWorker) {
-      waitingWorker.postMessage("skipWaiting");
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+
+    const basePath = location.pathname.startsWith("/pokeka-app") ? "/pokeka-app" : "";
+
+    navigator.serviceWorker.register(`${basePath}/sw.js`, { updateViaCache: "none" }).then((reg) => {
+      setRegistration(reg);
+
+      // Check if there's already a waiting worker
+      checkWaiting(reg);
+
+      // Listen for new updates
+      reg.addEventListener("updatefound", () => {
+        const newWorker = reg.installing;
+        if (!newWorker) return;
+        newWorker.addEventListener("statechange", () => {
+          if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+            setUpdateAvailable(true);
+            setRegistration(reg);
+          }
+        });
+      });
+
+      // Check for updates every 60 seconds
+      setInterval(() => reg.update(), 60 * 1000);
+    });
+
+    // Also detect controller change (another tab triggered update)
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
       window.location.reload();
+    });
+  }, [checkWaiting]);
+
+  const handleUpdate = () => {
+    if (registration?.waiting) {
+      registration.waiting.postMessage("skipWaiting");
     }
   };
 
