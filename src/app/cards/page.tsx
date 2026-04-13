@@ -53,7 +53,7 @@ export default function CardsPage() {
     <div className="relative">
       {/* Watermark background */}
       <div
-        className="pointer-events-none fixed inset-0 z-0 opacity-[0.06]"
+        className="pointer-events-none fixed inset-0 z-0 opacity-[0.15]"
         style={{
           backgroundImage: `url(${basePath}/watermark.png)`,
           backgroundSize: "320px",

@@ -31,7 +31,7 @@ export default function Dashboard() {
   return (
     <div className="relative">
       <div
-        className="pointer-events-none fixed inset-0 z-0 opacity-[0.06]"
+        className="pointer-events-none fixed inset-0 z-0 opacity-[0.15]"
         style={{
           backgroundImage: `url(${basePath}/watermark-dashboard.png)`,
           backgroundSize: "360px",
