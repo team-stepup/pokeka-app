@@ -26,9 +26,19 @@ export default function Dashboard() {
   }));
 
   const recentTrades = trades.slice(0, 5);
+  const basePath = typeof window !== "undefined" && window.location.pathname.startsWith("/pokeka-app") ? "/pokeka-app" : "";
 
   return (
-    <div>
+    <div className="relative">
+      <div
+        className="pointer-events-none fixed inset-0 z-0 opacity-[0.06]"
+        style={{
+          backgroundImage: `url(${basePath}/watermark-dashboard.png)`,
+          backgroundSize: "360px",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+        }}
+      />
       <h2 className="text-2xl font-bold mb-6">ダッシュボード</h2>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
