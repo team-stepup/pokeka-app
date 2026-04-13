@@ -100,18 +100,11 @@ export default function PricesPage() {
         await new Promise((r) => setTimeout(r, 200));
       }
 
-      // Match fetched prices to our cards
+      // Match fetched prices to our cards - exact name match only
       const matched: MatchedPrice[] = [];
       for (const card of cards) {
         const searchName = card.name.replace(/\([\d]+\)$/, "").trim();
-        // Find best match - exact name match first, then partial
-        const exactMatch = results.find((r) =>
-          r.name === searchName || r.name === card.name
-        );
-        const partialMatch = !exactMatch
-          ? results.find((r) => r.name.includes(searchName) || searchName.includes(r.name))
-          : null;
-        const match = exactMatch || partialMatch;
+        const match = results.find((r) => r.name === searchName);
 
         if (match && match.price !== card.unitPrice) {
           matched.push({
