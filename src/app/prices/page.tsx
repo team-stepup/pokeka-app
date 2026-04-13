@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useCards, usePriceHistory, updateCard, formatPrice, kanaMatch } from "@/lib/hooks";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { TrendingUp, TrendingDown, Search, Download, Loader2, ExternalLink, Check, X } from "lucide-react";
+import { TrendingUp, TrendingDown, Search, Download, Loader2, Check, X, Undo2, AlertTriangle } from "lucide-react";
 
 const WORKER_URL = "https://pokeka-price-proxy.hiro-0221-s-l.workers.dev";
 
@@ -38,6 +38,11 @@ export default function PricesPage() {
   const [fetchError, setFetchError] = useState("");
   const [matchedPrices, setMatchedPrices] = useState<MatchedPrice[]>([]);
   const [showFetchResults, setShowFetchResults] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  // Undo state
+  const [undoData, setUndoData] = useState<MatchedPrice[] | null>(null);
+  const [showUndoBar, setShowUndoBar] = useState(false);
 
   const selectedHistory = selectedCardId
     ? allHistory
@@ -137,11 +142,24 @@ export default function PricesPage() {
 
   const applyFetchedPrices = async () => {
     const selected = matchedPrices.filter((m) => m.selected);
+    // Save undo data (swap current/fetched for reversal)
+    setUndoData(selected.map((m) => ({ ...m, fetchedPrice: m.currentPrice, currentPrice: m.fetchedPrice })));
     for (const m of selected) {
       await updateCard(m.cardId, { unitPrice: m.fetchedPrice });
     }
     setShowFetchResults(false);
+    setShowConfirm(false);
     setMatchedPrices([]);
+    setShowUndoBar(true);
+  };
+
+  const undoApply = async () => {
+    if (!undoData) return;
+    for (const m of undoData) {
+      await updateCard(m.cardId, { unitPrice: m.fetchedPrice });
+    }
+    setUndoData(null);
+    setShowUndoBar(false);
   };
 
   const toggleMatch = (cardId: number) => {
@@ -195,7 +213,7 @@ export default function PricesPage() {
                 閉じる
               </button>
               <button
-                onClick={applyFetchedPrices}
+                onClick={() => setShowConfirm(true)}
                 className="flex items-center gap-1 text-xs bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700"
               >
                 <Check size={12} /> {matchedPrices.filter((m) => m.selected).length}件を適用
@@ -333,6 +351,80 @@ export default function PricesPage() {
             className="px-6 py-2 rounded-lg bg-primary text-white hover:bg-primary-dark"
           >
             {Object.values(bulkPrices).filter(Boolean).length}件の価格を更新
+          </button>
+        </div>
+      )}
+
+      {/* Confirmation modal */}
+      {showConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setShowConfirm(false)}>
+          <div className="bg-card rounded-t-2xl sm:rounded-xl w-full sm:max-w-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mt-3 sm:hidden" />
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle size={20} className="text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg">価格更新の確認</h3>
+                  <p className="text-sm text-muted">以下のカードの価格を更新します</p>
+                </div>
+              </div>
+
+              <div className="max-h-60 overflow-y-auto mb-4 border border-border rounded-lg">
+                {matchedPrices.filter((m) => m.selected).map((m) => {
+                  const diff = m.fetchedPrice - m.currentPrice;
+                  return (
+                    <div key={m.cardId} className="flex items-center justify-between px-4 py-2.5 border-b border-border last:border-0 text-sm">
+                      <span className="font-medium">{m.cardName}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted">&yen;{formatPrice(m.currentPrice)}</span>
+                        <span className="text-muted">&rarr;</span>
+                        <span className="font-bold">&yen;{formatPrice(m.fetchedPrice)}</span>
+                        <span className={`text-xs font-bold ${diff > 0 ? "text-success" : "text-danger"}`}>
+                          {diff > 0 ? "+" : ""}{formatPrice(diff)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <p className="text-xs text-muted mb-4">
+                合計 {matchedPrices.filter((m) => m.selected).length}件を更新します。更新後も「元に戻す」ボタンで復元できます。
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowConfirm(false)}
+                  className="flex-1 py-3 rounded-xl border border-border hover:bg-gray-50 font-medium"
+                >
+                  キャンセル
+                </button>
+                <button
+                  onClick={applyFetchedPrices}
+                  className="flex-1 py-3 rounded-xl bg-green-600 text-white hover:bg-green-700 font-medium"
+                >
+                  更新する
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Undo bar */}
+      {showUndoBar && undoData && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] bg-sidebar text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-4 text-sm">
+          <span>{undoData.length}件の価格を更新しました</span>
+          <button
+            onClick={undoApply}
+            className="flex items-center gap-1.5 bg-white text-sidebar px-3 py-1.5 rounded-lg font-medium hover:bg-gray-100"
+          >
+            <Undo2 size={14} /> 元に戻す
+          </button>
+          <button onClick={() => { setShowUndoBar(false); setUndoData(null); }} className="text-gray-400 hover:text-white">
+            <X size={16} />
           </button>
         </div>
       )}
