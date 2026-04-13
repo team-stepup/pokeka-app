@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, CreditCard, TrendingUp, ArrowLeftRight, Settings, Menu, X } from "lucide-react";
-import { useState } from "react";
+import { LayoutDashboard, CreditCard, TrendingUp, ArrowLeftRight, Settings, Menu, X, RefreshCw } from "lucide-react";
+import { useState, useCallback } from "react";
 
 const navItems = [
   { href: "/", label: "ダッシュボード", icon: LayoutDashboard },
@@ -16,6 +16,29 @@ const navItems = [
 export default function Sidebar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [updating, setUpdating] = useState(false);
+
+  const handleUpdate = useCallback(async () => {
+    setUpdating(true);
+    try {
+      if ("serviceWorker" in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg) {
+          await reg.update();
+          if (reg.waiting) {
+            reg.waiting.postMessage("skipWaiting");
+            await new Promise((r) => setTimeout(r, 500));
+            window.location.reload();
+            return;
+          }
+        }
+      }
+      // Even without SW update, hard reload to get latest
+      window.location.reload();
+    } catch {
+      window.location.reload();
+    }
+  }, []);
 
   return (
     <>
@@ -59,6 +82,16 @@ export default function Sidebar() {
             );
           })}
         </nav>
+        <div className="p-4 border-t border-sidebar-hover">
+          <button
+            onClick={handleUpdate}
+            disabled={updating}
+            className="flex items-center gap-2 w-full px-3 py-2.5 rounded-lg text-sm hover:bg-sidebar-hover transition-colors disabled:opacity-50"
+          >
+            <RefreshCw size={16} className={updating ? "animate-spin" : ""} />
+            {updating ? "更新中..." : "アプリを更新"}
+          </button>
+        </div>
       </aside>
     </>
   );
