@@ -58,9 +58,11 @@ export default function Sidebar() {
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="p-5 border-b border-sidebar-hover">
-          <h1 className="text-xl font-bold">PokeCard Manager</h1>
-          <p className="text-xs text-muted mt-1">ポケカ管理アプリ</p>
+        <div className="px-5 py-4 border-b border-sidebar-hover">
+          <h1 className="text-lg font-bold tracking-tight">
+            <span className="text-blue-400">Poke</span><span>Card</span>
+          </h1>
+          <p className="text-[11px] text-gray-400 tracking-wider mt-0.5">MANAGER</p>
         </div>
         <nav className="flex-1 py-4">
           {navItems.map((item) => {
