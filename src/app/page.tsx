@@ -17,12 +17,12 @@ export default function Dashboard() {
   const uniqueCards = cards.length;
 
   const top10 = [...cards]
-    .sort((a, b) => b.unitPrice * b.quantity - a.unitPrice * a.quantity)
+    .sort((a, b) => b.unitPrice - a.unitPrice)
     .slice(0, 10);
 
   const top10Chart = top10.map((c) => ({
     name: c.name.length > 8 ? c.name.slice(0, 8) + "..." : c.name,
-    value: c.unitPrice * c.quantity,
+    value: c.unitPrice,
   }));
 
   const recentTrades = trades.slice(0, 5);
@@ -58,14 +58,14 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-card rounded-xl p-6 shadow-sm border border-border">
-          <h3 className="text-lg font-bold mb-4">高額カード TOP10</h3>
+          <h3 className="text-lg font-bold mb-4">高額カード TOP10（単価）</h3>
           {top10Chart.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={top10Chart} layout="vertical" margin={{ left: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" tickFormatter={(v) => `¥${formatAxisPrice(v)}`} />
                 <YAxis type="category" dataKey="name" width={100} fontSize={12} />
-                <Tooltip formatter={(v) => [`¥${formatPrice(Number(v))}`, "金額"]} />
+                <Tooltip formatter={(v) => [`¥${formatPrice(Number(v))}`, "単価"]} />
                 <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>

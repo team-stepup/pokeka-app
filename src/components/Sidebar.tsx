@@ -33,7 +33,6 @@ export default function Sidebar() {
           }
         }
       }
-      // Even without SW update, hard reload to get latest
       window.location.reload();
     } catch {
       window.location.reload();
@@ -42,11 +41,12 @@ export default function Sidebar() {
 
   return (
     <>
+      {/* Mobile menu button - larger and more visible */}
       <button
-        className="fixed top-4 left-4 z-50 md:hidden bg-sidebar text-sidebar-text p-2 rounded-lg"
+        className="fixed top-3 left-3 z-50 md:hidden bg-primary text-white p-2.5 rounded-xl shadow-lg active:scale-95 transition-transform"
         onClick={() => setOpen(!open)}
       >
-        {open ? <X size={20} /> : <Menu size={20} />}
+        {open ? <X size={22} /> : <Menu size={22} />}
       </button>
 
       {open && (
@@ -58,11 +58,14 @@ export default function Sidebar() {
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="px-5 py-4 border-b border-sidebar-hover">
-          <h1 className="text-lg font-bold tracking-tight">
-            <span className="text-blue-400">Poke</span><span>Card</span>
-          </h1>
-          <p className="text-[11px] text-gray-400 tracking-wider mt-0.5">MANAGER</p>
+        <div className="px-5 py-5 border-b border-sidebar-hover flex items-center gap-3">
+          <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center text-white font-black text-sm">
+            PC
+          </div>
+          <div>
+            <h1 className="text-base font-bold leading-tight">PokeCard</h1>
+            <p className="text-[10px] text-gray-400 tracking-[0.2em]">MANAGER</p>
+          </div>
         </div>
         <nav className="flex-1 py-4">
           {navItems.map((item) => {
