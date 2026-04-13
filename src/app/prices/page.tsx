@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useCards, usePriceHistory, updateCard, formatPrice } from "@/lib/hooks";
+import { useCards, usePriceHistory, updateCard, formatPrice, kanaMatch } from "@/lib/hooks";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { TrendingUp, TrendingDown, Search } from "lucide-react";
 
@@ -25,7 +25,7 @@ export default function PricesPage() {
   const selectedCard = cards.find((c) => c.id === selectedCardId);
 
   const cardsWithHistory = cards
-    .filter((c) => c.name.toLowerCase().includes(search.toLowerCase()))
+    .filter((c) => kanaMatch(c.name, search))
     .map((card) => {
       const history = allHistory.filter((h) => h.cardId === card.id);
       const latest = history[history.length - 1]?.price ?? card.unitPrice;

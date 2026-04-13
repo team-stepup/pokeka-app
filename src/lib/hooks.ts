@@ -89,3 +89,25 @@ export async function seedInitialData() {
 export function formatPrice(price: number): string {
   return price.toLocaleString("ja-JP");
 }
+
+function toKatakana(str: string): string {
+  return str.replace(/[\u3041-\u3096]/g, (ch) =>
+    String.fromCharCode(ch.charCodeAt(0) + 0x60)
+  );
+}
+
+function toHiragana(str: string): string {
+  return str.replace(/[\u30A1-\u30F6]/g, (ch) =>
+    String.fromCharCode(ch.charCodeAt(0) - 0x60)
+  );
+}
+
+export function kanaMatch(target: string, query: string): boolean {
+  const t = target.toLowerCase();
+  const q = query.toLowerCase();
+  return (
+    t.includes(q) ||
+    toKatakana(t).includes(toKatakana(q)) ||
+    toHiragana(t).includes(toHiragana(q))
+  );
+}

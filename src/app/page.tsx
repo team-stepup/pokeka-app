@@ -1,6 +1,11 @@
 "use client";
 
-import { useCards, useTrades, formatPrice } from "@/lib/hooks";
+import { useCards, useTrades, formatPrice, kanaMatch } from "@/lib/hooks";
+
+function formatAxisPrice(v: number): string {
+  if (v >= 10000) return `${(v / 10000).toFixed(v % 10000 === 0 ? 0 : 1)}万`;
+  return v.toLocaleString("ja-JP");
+}
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 export default function Dashboard() {
@@ -48,7 +53,7 @@ export default function Dashboard() {
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={top10Chart} layout="vertical" margin={{ left: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" tickFormatter={(v) => `¥${(v / 1000).toFixed(0)}k`} />
+                <XAxis type="number" tickFormatter={(v) => `¥${formatAxisPrice(v)}`} />
                 <YAxis type="category" dataKey="name" width={100} fontSize={12} />
                 <Tooltip formatter={(v) => [`¥${formatPrice(Number(v))}`, "金額"]} />
                 <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} />
