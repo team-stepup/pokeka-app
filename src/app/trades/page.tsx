@@ -22,8 +22,19 @@ export default function TradesPage() {
     return acc;
   }, {} as Record<string, { buy: number; sell: number }>);
 
+  const basePath = typeof window !== "undefined" && window.location.pathname.startsWith("/pokeka-app") ? "/pokeka-app" : "";
+
   return (
-    <div>
+    <div className="relative">
+      <div
+        className="pointer-events-none fixed inset-0 z-0 opacity-[0.15]"
+        style={{
+          backgroundImage: `url(${basePath}/watermark-trades.png)`,
+          backgroundSize: "320px",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+        }}
+      />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <h2 className="text-2xl font-bold">売買記録</h2>
         <button
