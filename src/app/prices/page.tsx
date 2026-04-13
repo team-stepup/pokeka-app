@@ -3,7 +3,27 @@
 import { useState } from "react";
 import { useCards, usePriceHistory, updateCard, formatPrice, kanaMatch } from "@/lib/hooks";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { TrendingUp, TrendingDown, Search } from "lucide-react";
+import { TrendingUp, TrendingDown, Search, Download, Loader2, ExternalLink, Check, X } from "lucide-react";
+
+const WORKER_URL = "https://pokeka-price-proxy.hiro-0221-s-l.workers.dev";
+
+interface FetchedPrice {
+  name: string;
+  price: number;
+  rarity: string;
+  pack: string;
+  modelNumber: string;
+}
+
+interface MatchedPrice {
+  cardId: number;
+  cardName: string;
+  currentPrice: number;
+  fetchedPrice: number;
+  fetchedName: string;
+  rarity: string;
+  selected: boolean;
+}
 
 export default function PricesPage() {
   const cards = useCards();
@@ -12,6 +32,12 @@ export default function PricesPage() {
   const [search, setSearch] = useState("");
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkPrices, setBulkPrices] = useState<Record<number, string>>({});
+
+  // Fetch state
+  const [fetching, setFetching] = useState(false);
+  const [fetchError, setFetchError] = useState("");
+  const [matchedPrices, setMatchedPrices] = useState<MatchedPrice[]>([]);
+  const [showFetchResults, setShowFetchResults] = useState(false);
 
   const selectedHistory = selectedCardId
     ? allHistory
@@ -45,19 +71,178 @@ export default function PricesPage() {
     setBulkMode(false);
   };
 
+  const fetchFromCardRush = async () => {
+    setFetching(true);
+    setFetchError("");
+    setMatchedPrices([]);
+
+    try {
+      const results: FetchedPrice[] = [];
+
+      // Search for each unique card name
+      const uniqueNames = [...new Set(cards.map((c) => {
+        // Remove suffixes like (2) for search
+        return c.name.replace(/\([\d]+\)$/, "").trim();
+      }))];
+
+      // Batch fetch - search each card name
+      for (const name of uniqueNames) {
+        try {
+          const res = await fetch(`${WORKER_URL}?name=${encodeURIComponent(name)}&limit=5`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.results) results.push(...data.results);
+          }
+        } catch {
+          // Skip individual failures
+        }
+        // Small delay to be polite
+        await new Promise((r) => setTimeout(r, 200));
+      }
+
+      // Match fetched prices to our cards
+      const matched: MatchedPrice[] = [];
+      for (const card of cards) {
+        const searchName = card.name.replace(/\([\d]+\)$/, "").trim();
+        // Find best match - exact name match first, then partial
+        const exactMatch = results.find((r) =>
+          r.name === searchName || r.name === card.name
+        );
+        const partialMatch = !exactMatch
+          ? results.find((r) => r.name.includes(searchName) || searchName.includes(r.name))
+          : null;
+        const match = exactMatch || partialMatch;
+
+        if (match && match.price !== card.unitPrice) {
+          matched.push({
+            cardId: card.id!,
+            cardName: card.name,
+            currentPrice: card.unitPrice,
+            fetchedPrice: match.price,
+            fetchedName: match.name,
+            rarity: match.rarity,
+            selected: true,
+          });
+        }
+      }
+
+      setMatchedPrices(matched);
+      setShowFetchResults(true);
+
+      if (matched.length === 0) {
+        setFetchError("価格変動が見つかりませんでした（全カードが最新価格です）");
+      }
+    } catch (e) {
+      setFetchError(
+        "買取価格の取得に失敗しました。Cloudflare Workerが設定されていない可能性があります。\n" +
+        "設定方法: worker/ フォルダの wrangler.toml を使って `npx wrangler deploy` を実行してください。"
+      );
+    } finally {
+      setFetching(false);
+    }
+  };
+
+  const applyFetchedPrices = async () => {
+    const selected = matchedPrices.filter((m) => m.selected);
+    for (const m of selected) {
+      await updateCard(m.cardId, { unitPrice: m.fetchedPrice });
+    }
+    setShowFetchResults(false);
+    setMatchedPrices([]);
+  };
+
+  const toggleMatch = (cardId: number) => {
+    setMatchedPrices((prev) =>
+      prev.map((m) => (m.cardId === cardId ? { ...m, selected: !m.selected } : m))
+    );
+  };
+
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <h2 className="text-2xl font-bold">価格トラッキング</h2>
-        <button
-          onClick={() => setBulkMode(!bulkMode)}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            bulkMode ? "bg-accent text-white" : "border border-border hover:bg-gray-50"
-          }`}
-        >
-          {bulkMode ? "一括更新モード ON" : "価格一括更新"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={fetchFromCardRush}
+            disabled={fetching}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors text-sm font-medium disabled:opacity-50"
+          >
+            {fetching ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+            {fetching ? "取得中..." : "カードラッシュから取得"}
+          </button>
+          <button
+            onClick={() => setBulkMode(!bulkMode)}
+            className={`px-3 py-2 rounded-lg transition-colors text-sm ${
+              bulkMode ? "bg-accent text-white" : "border border-border hover:bg-gray-50"
+            }`}
+          >
+            {bulkMode ? "一括更新 ON" : "手動一括更新"}
+          </button>
+        </div>
       </div>
+
+      {fetchError && (
+        <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm whitespace-pre-line">
+          {fetchError}
+        </div>
+      )}
+
+      {/* Fetch results panel */}
+      {showFetchResults && matchedPrices.length > 0 && (
+        <div className="mb-6 bg-card rounded-xl border-2 border-green-200 shadow-sm overflow-hidden">
+          <div className="bg-green-50 px-4 py-3 flex items-center justify-between">
+            <h3 className="font-bold text-green-800 text-sm">
+              カードラッシュ買取価格 - {matchedPrices.length}件の価格変動
+            </h3>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowFetchResults(false)}
+                className="text-xs text-muted hover:text-foreground px-2 py-1"
+              >
+                閉じる
+              </button>
+              <button
+                onClick={applyFetchedPrices}
+                className="flex items-center gap-1 text-xs bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700"
+              >
+                <Check size={12} /> {matchedPrices.filter((m) => m.selected).length}件を適用
+              </button>
+            </div>
+          </div>
+          <div className="max-h-80 overflow-y-auto">
+            {matchedPrices.map((m) => {
+              const diff = m.fetchedPrice - m.currentPrice;
+              const diffRate = m.currentPrice > 0 ? (diff / m.currentPrice) * 100 : 0;
+              return (
+                <div
+                  key={m.cardId}
+                  className={`flex items-center gap-3 px-4 py-2.5 border-b border-border last:border-0 ${
+                    m.selected ? "bg-white" : "bg-gray-50 opacity-60"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={m.selected}
+                    onChange={() => toggleMatch(m.cardId)}
+                    className="w-4 h-4 rounded"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{m.cardName}</p>
+                    <p className="text-xs text-muted truncate">CR: {m.fetchedName} ({m.rarity})</p>
+                  </div>
+                  <div className="text-right text-sm flex-shrink-0">
+                    <p className="text-muted line-through">&yen;{formatPrice(m.currentPrice)}</p>
+                    <p className="font-bold">&yen;{formatPrice(m.fetchedPrice)}</p>
+                  </div>
+                  <span className={`text-xs font-bold flex-shrink-0 ${diff > 0 ? "text-success" : "text-danger"}`}>
+                    {diff > 0 ? "+" : ""}{diffRate.toFixed(0)}%
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {selectedCardId && selectedCard && (
         <div className="bg-card rounded-xl p-6 shadow-sm border border-border mb-6">
@@ -72,7 +257,7 @@ export default function PricesPage() {
               <LineChart data={selectedHistory}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" fontSize={12} />
-                <YAxis tickFormatter={(v) => `¥${(v / 1000).toFixed(0)}k`} />
+                <YAxis tickFormatter={(v) => `¥${formatPrice(v)}`} />
                 <Tooltip formatter={(v) => [`¥${formatPrice(Number(v))}`, "価格"]} />
                 <Line type="monotone" dataKey="price" stroke="#3b82f6" strokeWidth={2} dot />
               </LineChart>
@@ -87,10 +272,10 @@ export default function PricesPage() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={16} />
         <input
           type="text"
-          placeholder="カード名で検索..."
+          placeholder="カード名で検索（ひらがな/カタカナ対応）..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 rounded-lg border border-border bg-card focus:outline-none focus:ring-2 focus:ring-primary"
+          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-card focus:outline-none focus:ring-2 focus:ring-primary text-sm"
         />
       </div>
 
